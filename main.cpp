@@ -26,11 +26,15 @@ int16_t raw_val;
 float vm_f;
 int16_t vm;    //mV unit
 
-//oR-meter
+//R-meter
 void r_set(uint8_t range);
 uint8_t range;
 float dut_f;    //ohm unit
 uint32_t dut_r; //ohm unit
+
+//UART
+uint8_t buf_state, uart_flag;
+char cmd_buf[1];
 
 //constants
 #define adc_res 32768 //2^15 adc resolution. unipolar
@@ -60,7 +64,7 @@ int main(){
     lcd_init(lcd_addr, contrast);
     thread_sleep_for(100);  //wait for LCD power on
     
-    printf("start\n\r");
+    //printf("start\n\r");
     //adc init
     cs1=0;
     spi.write(rst);
@@ -100,7 +104,15 @@ int main(){
                 raw_val=(buf[1]<<8)+buf[0];
                 vm_f=(float)raw_val*adc_ref/adc_res/att*vm_gain+vm_ofs;
                 vm=(int16_t)vm_f;
-                printf("Voltage: %d mV\n\r",vm);
+                //printf("Voltage: %d mV\n\r",vm);
+
+                //UART check
+                buf_state=uart0.readable();
+                if(buf_state!=0){   //UART CMD read
+                    uart0.read(cmd_buf,1);
+                    if(cmd_buf[0]==63) printf("%d\n\r", vm); //read flag is '?'
+                }
+
                 if(vm>=0) char_disp(lcd_addr,0,'+');
                 else{
                     char_disp(lcd_addr,0,'-');
@@ -169,6 +181,13 @@ int main(){
                 val_disp(lcd_addr,0,2,dut_r/1000000);
                 val_disp(lcd_addr,3,3,(dut_r-(dut_r/1000000)*1000000)/1000);
                 val_disp(lcd_addr,7,3,dut_r%1000);
+                
+                //UART check
+                buf_state=uart0.readable();
+                if(buf_state!=0){   //UART CMD read
+                    uart0.read(cmd_buf,1);
+                    if(cmd_buf[0]==63) printf("%d\n\r", dut_r); //read flag is '?'
+                }
 
                 if(range==0){
                     char_disp(lcd_addr,0x40+0,'1');
@@ -177,7 +196,7 @@ int main(){
                     char_disp(lcd_addr,0x40+3,0x1e);
                     char_disp(lcd_addr,0x40+4,'R');
                     char_disp(lcd_addr,0x40+5,' ');
-                    printf("100ohm Range, Voltage: %d mV, Current: 1.5mA, Resistance: %d ohm\n\r",vm/4,dut_r);
+                    //printf("100ohm Range, Voltage: %d mV, Current: 1.5mA, Resistance: %d ohm\n\r",vm/4,dut_r);
                 }else if(range==1){
                     char_disp(lcd_addr,0x40+0,'1');
                     char_disp(lcd_addr,0x40+1,'k');
@@ -185,7 +204,7 @@ int main(){
                     char_disp(lcd_addr,0x40+3,'R');
                     char_disp(lcd_addr,0x40+4,' ');
                     char_disp(lcd_addr,0x40+5,' ');
-                    printf("1kohm Range, Voltage: %d mV, Current: 1.5mA, Resistance: %d ohm\n\r",vm,dut_r);
+                    //printf("1kohm Range, Voltage: %d mV, Current: 1.5mA, Resistance: %d ohm\n\r",vm,dut_r);
                 }else if(range==2){
                     char_disp(lcd_addr,0x40+0,'1');
                     char_disp(lcd_addr,0x40+1,'0');
@@ -193,7 +212,7 @@ int main(){
                     char_disp(lcd_addr,0x40+3,0x1e);
                     char_disp(lcd_addr,0x40+4,'R');
                     char_disp(lcd_addr,0x40+5,' ');
-                    printf("10kohm Range, Voltage: %d mV, Current: 100uA, Resistance: %d ohm\n\r",vm,dut_r);
+                    //printf("10kohm Range, Voltage: %d mV, Current: 100uA, Resistance: %d ohm\n\r",vm,dut_r);
                 }else if(range==3){
                     char_disp(lcd_addr,0x40+0,'1');
                     char_disp(lcd_addr,0x40+1,'0');
@@ -201,7 +220,7 @@ int main(){
                     char_disp(lcd_addr,0x40+3,'k');
                     char_disp(lcd_addr,0x40+4,0x1e);
                     char_disp(lcd_addr,0x40+5,'R');
-                    printf("100kohm Range, Voltage: %d mV, Current: 50uA(20kohm shunt), Resistance: %d ohm\n\r",vm/2,dut_r);
+                    //printf("100kohm Range, Voltage: %d mV, Current: 50uA(20kohm shunt), Resistance: %d ohm\n\r",vm/2,dut_r);
                 }
                 if(dut_r>=10000000){
                     char_disp(lcd_addr,0x40+7,'O');
